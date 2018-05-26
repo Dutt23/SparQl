@@ -1,119 +1,125 @@
 package com.stackroute.sparQL.repository;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Random;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
 import com.hp.hpl.jena.query.QueryExecutionFactory;
 import com.hp.hpl.jena.query.QueryFactory;
-import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Resource;
+import com.stackroute.sparQL.model.Main;
+import com.stackroute.sparQL.model.Questions;
 
 @Repository
 public class SparQLRepository {
 
-	public void dummyMethod() {
+	@Autowired
+	QuestionsRepository repo;
 
-		List<RDFNode> node = new ArrayList<RDFNode>();
-		
-		String sparqlQuery = "PREFIX dbo: <http://dbpedia.org/ontology/>\n" + 
-				"PREFIX dbr: <http://dbpedia.org/resource/>\n" + 
-				"\n" + 
-				"SELECT DISTINCT ?country ?capital\n" + 
-				"WHERE {\n" + 
-				" ?country a dbo:Country.\n" + 
-				" ?country dbo:capital ?capital.\n" + 
-				"} \n " +
-				"LIMIT 50";
- 
+	public Questions capitals(Questions questions) throws JsonParseException, JsonMappingException, IOException {
+
+		String sparqlQuery = "PREFIX dbo: <http://dbpedia.org/ontology/>\n"
+				+ "PREFIX dbr: <http://dbpedia.org/resource/>\n" + "\n" + "SELECT DISTINCT ?country ?capital\n"
+				+ "WHERE {\n" + " ?country a dbo:Country.\n" + " ?country dbo:capital ?capital.\n" + "} \n "
+				+ "LIMIT 50";
+EndPoint sp = new EndPoint();
 		Query query = QueryFactory.create(sparqlQuery);
 		QueryExecution queryExecution = QueryExecutionFactory.sparqlService("http://dbpedia.org/sparql", query);
 		ResultSet result = queryExecution.execSelect();
-		for(; result.hasNext() ; ) {
-			System.out.println("working");
-//			QuerySolution soln = result.nextSolution();
-//			RDFNode a = soln.get("x") ;
-//			node.add(a);
-//			//System.out.println(soln);
+
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		ResultSetFormatter.outputAsJSON(outputStream, result);
+		String json = new String(outputStream.toByteArray()).replace("http://dbpedia.org/resource/", " ");
+		
+		ObjectMapper objectMapper = new ObjectMapper();
+		Main main = objectMapper.readValue(json, Main.class);
+
+		String questionStem = "What is capital of ";
+		Random rand = new Random();
+		int i = rand.nextInt(main.getResults().getBindings().size()) + 1;
+		int j = rand.nextInt(main.getResults().getBindings().size()) + 1;
+		int k = rand.nextInt(main.getResults().getBindings().size()) - 3;
+		for (int c = 0; c < main.getResults().getBindings().size(); c++) {
+			questions.setQuestionId(c + 1);
+			questions.setQuestionStem(
+					questionStem + main.getResults().getBindings().get(c).getCountry().getValue() + "?");
+			questions.setQuestionLevel(1);
+			questions.setQuestionType("Auto");
+			questions.setOption1(main.getResults().getBindings().get(i).getCapital().getValue());
+			questions.setOption2(main.getResults().getBindings().get(j).getCapital().getValue());
+			questions.setOption3(main.getResults().getBindings().get(c).getCapital().getValue());
+			questions.setOption4(main.getResults().getBindings().get(k).getCapital().getValue());
+			questions.setCorrectAnswer(main.getResults().getBindings().get(c).getCapital().getValue());
+			repo.save(questions);
 		}
-		ResultSetFormatter.out(System.out, result, query.getPrefixMapping());
-		queryExecution.close();
+		System.out.println(questions.getQuestionStem());
+		System.out.println(questions.getOption1());
+		System.out.println(questions.getOption4());
+		System.out.println(questions.getOption3());
+		System.out.println(questions.getOption2());
+
+		return questions;
+	}
+
+	public Questions presidents(Questions questions) throws JsonParseException, JsonMappingException, IOException {
+
+//		Band name query , WORKING
+//		String sparqlQuery = "PREFIX dbo: <http://dbpedia.org/ontology/>\n" + 
+//				"PREFIX dbp: <http://dbpedia.org/resource/>\n" + 
+//				"PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" + 
+//				"\n" + 
+//				"SELECT ?name ?bandname where {\n" + 
+//				"  ?person foaf:name ?name .\n" + 
+//				"  ?band dbo:bandMember ?person .\n" + 
+//				"  ?band dbo:genre dbp:Punk_rock .\n" + 
+//				"  ?band foaf:name ?bandname .\n" + 
+//				"}";
+
+		
+		//		WIKI DATA.HOW PRESIDENT DIE
+		String sparqlQuery= "PREFIX wikibase: <http://wikiba.se/ontology#>\n" + 
+				"PREFIX wd: <http://www.wikidata.org/entity/>\n" + 
+				"PREFIX wdt: <http://www.wikidata.org/prop/direct/>\n" + 
+				"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" + 
+				"\n" + 
+				"SELECT ?president ?cause ?dob ?dod WHERE {\n" + 
+				"   ?pid wdt:P39 wd:Q11696 .\n" + 
+				"   ?pid wdt:P509 ?cid .\n" + 
+				"   ?pid wdt:P569 ?dob .\n" + 
+				"   ?pid wdt:P570 ?dod .\n" + 
+				"\n" + 
+				"   OPTIONAL {\n" + 
+				"       ?pid rdfs:label ?president filter (lang(?president) = \"en\") .\n" + 
+				"   }\n" + 
+				"   OPTIONAL {\n" + 
+				"       ?cid rdfs:label ?cause filter (lang(?cause) = \"en\") .\n" + 
+				"   }\n" + 
+				"}";
+		Query query = QueryFactory.create(sparqlQuery);
+		QueryExecution queryExecution = QueryExecutionFactory.sparqlService("https://query.wikidata.org/sparql", query);
+		ResultSet result = queryExecution.execSelect();
+
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		ResultSetFormatter.outputAsJSON(outputStream, result);
+		String json = new String(outputStream.toByteArray()).replace("{\n" + 
+				"  \"head\": {\n" + 
+				"    \"vars\": [ \"president\" , \"cause\" , \"dob\" , \"dod\" ]\n" + 
+				"  } ,", " ");
+		System.out.println(json);
+		// ObjectMapper objectMapper = new ObjectMapper();
+		// Main main = objectMapper.readValue(json, Main.class);
+
+		return questions;
 
 	}
+
 }
-
-/*
- * String queryString = "SELECT DISTINCT ?s WHERE " + "{" +
- * "  ?s <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://www.w3.org/2002/07/owl#Thing> . "
- * +
- * "  FILTER ( ?s != <http://www.w3.org/2002/07/owl#Thing> && ?s != <http://www.w3.org/2002/07/owl#Nothing> ) . "
- * +
- * "  OPTIONAL { ?s <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?super . "
- * +
- * "  FILTER ( ?super != <http://www.w3.org/2002/07/owl#Thing> && ?super != ?s ) } . "
- * + "}";
- * QueryExecution qe = QueryExecutionFactory.create(query, model);
- */
-// "PREFIX dbo: <http://dbpedia.org/ontology/>\n" +
-// "PREFIX yago: <http://dbpedia.org/class/yago/>\n" +
-// "PREFIX dbp: <http://dbpedia.org/property/>\n" +
-// "PREFIX dct: <http://purl.org/dc/terms/>\n" +
-// "\n" +
-// "SELECT DISTINCT *\n" +
-// "WHERE\n" +
-// " { ?country dct:subject \n"+
-// " <http://dbpedia.org/resource/Category:Countries_in_Europe> ;\n" +
-// " dbo:capital ?capital\n" +
-// " }";
-// String queryString = "PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" + "SELECT
-// ?name\n" + "WHERE {\n"
-// + " ?person foaf:name ?name .\n" + "}";
-
-// SPARQLRepository repo = new SPARQLRepository(endPoints);
-//
-// repo.getDataDir();
-//
-//
-// RepositoryConnection connection = repo.getConnection();
-// create OntModel
-/*
- * OntModel model = ModelFactory.createOntologyModel(); // read camera ontology
- * List<String> roots = new ArrayList<String>(); SailRepository rep = new
- * SailRepository(new MemoryStore()); rep.initialize(); String namespace =
- * "http://example.org/"; ValueFactory f = rep.getValueFactory(); IRI john =
- * f.createIRI(namespace, "john");
- * 
- * try {
- * 
- * RepositoryConnection conn = rep.getConnection(); // conn.add(john, RDF.TYPE,
- * f.createLiteral("Hi")); // // conn.add(john,
- * RDFS.label,f.createLiteral("John")); // conn.add(john, RDF.TYPE,FOAF.PERSON);
- * // RepositoryResult<Statement> statements = conn.getStatements(null, null, //
- * null); // org.eclipse.rdf4j.model.Model model =
- * QueryResults.asModel(statements); // model.setNamespace("rdf",
- * RDF.NAMESPACE); // // model.setNamespace("foaf", FOAF.NAMESPACE); // //
- * model.setNamespace("ex", namespace); // // Rio.write(model, System.out,
- * RDFFormat.TURTLE);
- * 
- * com.hp.hpl.jena.query.Query query = QueryFactory.create(queryString);
- * QueryExecution qexec = QueryExecutionFactory.create(query, model);
- * 
- * ResultSet results = qexec.execSelect(); // TupleQuery tq =
- * rep.getConnection().prepareTupleQuery(QueryLanguage.SPARQL, // queryString);
- * // TupleQueryResult result = tq.evaluate(); // ResultSet result;
- * 
- * System.out.println("This is resulnumber of results" +
- * results.getRowNumber());
- * 
- * qexec.close();
- * 
- * } finally {
- * 
- * }
- */

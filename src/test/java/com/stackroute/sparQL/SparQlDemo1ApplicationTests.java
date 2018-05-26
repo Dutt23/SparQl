@@ -1,4 +1,4 @@
-package com.stackroute.sparQL;
+/*package com.stackroute.sparQL;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,3 +14,4 @@ public class SparQlDemo1ApplicationTests {
 	}
 
 }
+*/

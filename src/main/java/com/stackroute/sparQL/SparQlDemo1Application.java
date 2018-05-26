@@ -9,8 +9,6 @@ public class SparQlDemo1Application {
 	public static void main(String[] args) {
 		SpringApplication.run(SparQlDemo1Application.class, args);
 
-		
-		
 	}
 
 }

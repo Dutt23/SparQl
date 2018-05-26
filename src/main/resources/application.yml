@@ -1,0 +1,7 @@
+spring:     
+  data:
+    mongodb:
+      database: questiondb
+      host: localhost
+      uri: mongodb://localhost:27017/questiondb
+      port: 27017
